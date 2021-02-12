@@ -6,7 +6,7 @@ Function Test-UPNCompliance{
         Script to test UPN compliance accross mail and primaryproxyaddress in preparation of Azure AD Connect sync.
         This script will check for primarysmtpaddress and validate if UPN and mail is the same value.
 
-        For users without primarysmtpaddress thi script will validate samaccountname against UPN and mail.
+        For users without primarysmtpaddress thiw script will validate UPN against samaccountname and mail.
         
         See more information https://docs.microsoft.com/en-us/microsoft-365/enterprise/prepare-for-directory-synchronization?view=o365-worldwide#2-directory-object-and-attribute-preparation
     .EXAMPLE
@@ -73,13 +73,15 @@ Function Test-UPNCompliance{
             $primaryProxyaddress = $null
             $LocalDomainSuffix = $false
             $Compliant = $True
+            $HasMailBox = $false
             $ErrorMsg = ""
 
             if($User.proxyaddresses){
+                $HasMailBox = $true
                 $primaryProxyaddress = ($User.proxyaddresses | Where-Object{$_ -clike "SMTP:*"}) -replace "SMTP:", ""
                 $primaryProxyaddress = $primaryProxyaddress.ToLower()
                 
-                ### Testa mail.
+                ### test mail.
                 if(!($User.mail)){
                     $Compliant = $false
                     $ErrorMsg += "Missing mail.;"
@@ -87,12 +89,12 @@ Function Test-UPNCompliance{
                 else{
                     if(!($primaryProxyaddress -eq $user.mail)){
                         $Compliant = $false
-                        $ErrorMsg += "Mail and proxy doesnt match.;"
+                        $ErrorMsg += "Mail and proxyaddresses doesnt match.;"
                     }#End if
                 }#End else
                 ###
 
-                ### Testa UPN
+                ### test UPN
                 if(!($User.Userprincipalname)){
                     $Compliant = $false
                     $ErrorMsg += "Missing UPN.;"
@@ -106,14 +108,45 @@ Function Test-UPNCompliance{
 
                     if(!($primaryProxyaddress -eq $user.Userprincipalname)){
                         $Compliant = $false
-                        $ErrorMsg += "UPN and proxy doesnt match.;"
+                        $ErrorMsg += "UPN and proxyaddresses doesnt match.;"
                     }#End if
                 }#End else
 
             }#End if
-            else {
-                $Compliant = $false
-                $ErrorMsg += "Missing epost, wont test anything.;"
+            else{
+                if(!($User.Userprincipalname)){
+                    $Compliant = $false
+                    $ErrorMsg += "Missing UPN and proxyaddresses. Wont test anything;"
+                }#End if
+                else{
+                    
+                    ### test mail
+                    if(!($User.mail)){
+                        $Compliant = $false
+                        $ErrorMsg += "Missing mail.;"
+                    }#End if
+                    else{
+                        if(!($User.Userprincipalname -eq $user.mail)){
+                            $Compliant = $false
+                            $ErrorMsg += "Mail and UPN doesnt match.;"
+                        }#End if
+                    }#End else
+                    ###
+
+                    ### test samaccountname
+                    if(!($User.samaccountname)){
+                        $Compliant = $false
+                        $ErrorMsg += "Missing samaccountname.;"
+                    }#End if
+                    else{
+                        $tempupn = ($user.userprincipalname -split '@')[0]
+                        if(!($tempupn -eq $User.samaccountname)){
+                            $Compliant = $false
+                            $ErrorMsg += "UPN-prefix and samaccountname doesnt match.;"
+                        }#End if
+                    }#End else
+                    ###
+                }#End else
             }#End else
 
             if($ErrorMsg.length -eq 0){
@@ -125,10 +158,12 @@ Function Test-UPNCompliance{
 
             $customObject = New-Object System.Object
             $customObject | Add-Member -Type NoteProperty -Name DistinguishedName -Value $User.DistinguishedName
+            $customObject | Add-Member -Type NoteProperty -Name samaccountname -Value $User.samaccountname
             $customObject | Add-Member -Type NoteProperty -Name mail -Value $User.mail
             $customObject | Add-Member -Type NoteProperty -Name Userprincipalname -Value $User.Userprincipalname
             $customObject | Add-Member -Type NoteProperty -Name primaryProxyaddress -Value $primaryProxyaddress
             $customObject | Add-Member -Type NoteProperty -Name LocalDomainSuffixUPN -Value $LocalDomainSuffix
+            $customObject | Add-Member -Type NoteProperty -Name HasMailBox -Value $HasMailBox
             $customObject | Add-Member -Type NoteProperty -Name Compliant -Value $Compliant
             $customObject | Add-Member -Type NoteProperty -Name ErrorMsg -Value $ErrorMsg
             $returnArray.add($customObject) | Out-Null
