@@ -1,9 +1,13 @@
 Function Test-UPNCompliance{
     <#
     .SYNOPSIS
-        Script to test UPN compliance accross mail and primaryproxyaddress in preparation of Azure AD Connect sync..
+        Script to test UPN compliance accross mail and primaryproxyaddress in preparation of Azure AD Connect sync.
     .DESCRIPTION
         Script to test UPN compliance accross mail and primaryproxyaddress in preparation of Azure AD Connect sync.
+        This script will check for primarysmtpaddress and validate if UPN and mail is the same value.
+
+        For users without primarysmtpaddress thi script will validate samaccountname against UPN and mail.
+        
         See more information https://docs.microsoft.com/en-us/microsoft-365/enterprise/prepare-for-directory-synchronization?view=o365-worldwide#2-directory-object-and-attribute-preparation
     .EXAMPLE
         PS C:\> Test-UPNCompliance -ManuallyUsers upn2
@@ -42,7 +46,7 @@ Function Test-UPNCompliance{
     [CmdletBinding()]
     param(
         [Parameter(ParameterSetName = 'ObjectUser')]
-        $ObjectUser, #Måste vara get-aduser med -properties mail, proxyaddresses
+        $ObjectUser, #Ha to object from Get-AdUser with -properties mail, proxyaddresses
         [Parameter(ParameterSetName = 'AllUsers')]
         [switch]$AllUsers,
         [Parameter(ParameterSetName = 'ManuallyUsers')]
