@@ -74,6 +74,7 @@ Function Test-UPNCompliance{
             $LocalDomainSuffix = $false
             $Compliant = $True
             $HasMailBox = $false
+            $UPNAndProxyMatch = $null
             $ErrorMsg = ""
 
             if($User.proxyaddresses){
@@ -108,8 +109,12 @@ Function Test-UPNCompliance{
 
                     if(!($primaryProxyaddress -eq $user.Userprincipalname)){
                         $Compliant = $false
+                        $UPNAndProxyMatch = $False
                         $ErrorMsg += "UPN and proxyaddresses doesnt match.;"
                     }#End if
+                    else{
+                        $UPNAndProxyMatch = $True
+                    }#End else
                 }#End else
 
             }#End if
@@ -153,7 +158,7 @@ Function Test-UPNCompliance{
                 $ErrorMsg = $null
             }#End if
             else{
-                $ErrorMsg = $ErrorMsg.substring(0, $ErrorMsg.length - 1)
+                $ErrorMsg = $ErrorMsg.TrimEnd(';')
             }#End else
 
             $customObject = New-Object System.Object
@@ -163,6 +168,7 @@ Function Test-UPNCompliance{
             $customObject | Add-Member -Type NoteProperty -Name Userprincipalname -Value $User.Userprincipalname
             $customObject | Add-Member -Type NoteProperty -Name primaryProxyaddress -Value $primaryProxyaddress
             $customObject | Add-Member -Type NoteProperty -Name LocalDomainSuffixUPN -Value $LocalDomainSuffix
+            $customObject | Add-Member -Type NoteProperty -Name UPNAndProxyMatch -Value $UPNAndProxyMatch
             $customObject | Add-Member -Type NoteProperty -Name HasMailBox -Value $HasMailBox
             $customObject | Add-Member -Type NoteProperty -Name Compliant -Value $Compliant
             $customObject | Add-Member -Type NoteProperty -Name ErrorMsg -Value $ErrorMsg
@@ -173,4 +179,65 @@ Function Test-UPNCompliance{
     end{
         return $returnArray
     }#End end
+}#End function
+
+Function Set-CorrectUPN{
+        <#
+    .SYNOPSIS
+        This funciton takes an input object from the Function Test-UPNCompliance and tries to correct upn, mail and primaryproxyaddress.
+    .DESCRIPTION
+        This funciton takes an input object from the Function Test-UPNCompliance and tries to correct upn, mail and primaryproxyaddress.
+        
+        See more information https://docs.microsoft.com/en-us/microsoft-365/enterprise/prepare-for-directory-synchronization?view=o365-worldwide#2-directory-object-and-attribute-preparation
+    .EXAMPLE
+    .INPUTS
+        Inputs (if any)
+    .OUTPUTS
+        Output (if any)
+    .NOTES
+        General notes
+    #>
+    [CmdletBinding()]
+    param(
+        #Must be object from Test-UPNCompliance
+        [Parameter(Mandatory = $True)]
+        [object]$Users
+    )#End param
+
+    begin{
+        #$returnArray = [System.Collections.ArrayList]@()
+        $UsedUPN = [System.Collections.ArrayList]@()
+        $Users = $Users | Where-Object{$_.compliant -eq $false}
+    }#End begin
+
+    process{
+        foreach($user in $users){
+            $SamaccountName = $User.SamaccountName
+            #Handle error when UPN and Proxyaddress doesnt match.
+            if($user.UPNAndProxyMatch -eq $false){
+                $NewUPN = $User.primaryProxyaddress
+                if($NewUPN -in $UsedUPN){
+                    Write-Warning "$NewUPN already used during this run. Wont change anything on user with samaccountname $samaccountname"
+                    continue
+                }#End if
+                else{
+                    if(Get-ADUser -filter{Userprincipalname -like $newupn}){
+                        Write-Warning "$NewUPN already taken in AD. Wont change anything on user with samaccountname $samaccountname"
+                        continue
+                    }#End if
+                    else{
+                        Write-Verbose "Will change UPN to $NewUpn on on user with samaccountname $samaccountname"
+                        $UsedUPN.add($newupn) | Out-Null
+                        Set-ADUser $samaccountname -userprincipalname $newupn -confirm:$false
+                    }#End else
+                }#End else
+            }#End if
+            Test-UPNCompliance -ManuallyUsers $samaccountname
+        }#End foreach
+    }#End process
+
+    end{
+        #return $returnArray
+    }#End end
+
 }#End function
