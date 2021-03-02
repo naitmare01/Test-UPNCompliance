@@ -232,6 +232,12 @@ Function Set-CorrectUPN{
                     }#End else
                 }#End else
             }#End if
+            
+            if($user.ErrorMsg -like "Missing mail."){
+                $NewMail = $User.userprincipalname
+                Write-Verbose "$samaccountname doesnt have any value on mail. Will try to set $NewMail as mail."
+                Set-AdUser $samaccountname -emailaddress $NewMail
+            }#End if
             Test-UPNCompliance -ManuallyUsers $samaccountname
         }#End foreach
     }#End process
