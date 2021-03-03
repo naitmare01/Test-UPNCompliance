@@ -214,7 +214,8 @@ Function Set-CorrectUPN{
         foreach($user in $users){
             $SamaccountName = $User.SamaccountName
             #Handle error when UPN and Proxyaddress doesnt match.
-            if($user.UPNAndProxyMatch -eq $false){
+            #Handle error "Local domain on UPN.;UPN and proxyaddresses doesnt match."
+            if($user.UPNAndProxyMatch -eq $false -or $User.ErrorMsg -like "Local domain on UPN.;UPN and proxyaddresses doesnt match."){
                 $NewUPN = $User.primaryProxyaddress
                 if($NewUPN -in $UsedUPN){
                     Write-Warning "$NewUPN already used during this run. Wont change anything on user with samaccountname $samaccountname"
@@ -233,11 +234,13 @@ Function Set-CorrectUPN{
                 }#End else
             }#End if
             
+            #Handle Error when mail attribute is missing
             if($user.ErrorMsg -like "Missing mail."){
                 $NewMail = $User.userprincipalname
                 Write-Verbose "$samaccountname doesnt have any value on mail. Will try to set $NewMail as mail."
                 Set-AdUser $samaccountname -emailaddress $NewMail
             }#End if
+
             Test-UPNCompliance -ManuallyUsers $samaccountname
         }#End foreach
     }#End process
