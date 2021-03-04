@@ -148,6 +148,14 @@ Function Test-UPNCompliance{
                         if(!($tempupn -eq $User.samaccountname)){
                             $Compliant = $false
                             $ErrorMsg += "UPN-prefix and samaccountname doesnt match.;"
+                            #Hard coded override for edu in Heby and knivsta because we will assume they have a correct email  in another system.
+                            if($user.userprincipalname -like '*@edu.knivsta.se' -or $user.userprincipalname -like '*@edu.heby.se'){
+                                $Compliant = $True
+                                $HasMailBox = $True
+                                $primaryProxyaddress = $user.userprincipalname
+                                $UPNAndProxyMatch = $True
+                                $ErrorMsg = "Manually set the user to compliant. Assuming that the user has a correct mailbox."
+                            }#End if
                         }#End if
                     }#End else
                     ###
