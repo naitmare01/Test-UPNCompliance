@@ -77,10 +77,9 @@ Function Test-UPNCompliance{
             $UPNAndProxyMatch = $null
             $ErrorMsg = ""
 
-            if($User.proxyaddresses){
+            if($User.proxyaddresses -and (($User.proxyaddresses | Where-Object{$_ -clike "SMTP:*"}) -replace "SMTP:", "")){
                 $HasMailBox = $true
                 $primaryProxyaddress = ($User.proxyaddresses | Where-Object{$_ -clike "SMTP:*"}) -replace "SMTP:", ""
-                $primaryProxyaddress = $primaryProxyaddress.ToLower()
                 
                 ### test mail.
                 if(!($User.mail)){
